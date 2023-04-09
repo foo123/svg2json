@@ -19,6 +19,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
 "use strict";
 
 var VERSION = "1.0.0",
+	COMMENT = /<!--.*?-->/m,
 	TAG = /<(\/)?([a-z0-9_:\-]+)\b\s*([^<>]*)\/?>/im,
     ATT = /([a-z0-9_:\-]+)\b\s*(?:=\s*"([^"]*)")?/im,
     COMMAND = /[MLHVCSQTAZ]/gi,
@@ -30,6 +31,12 @@ var VERSION = "1.0.0",
 function trim(s)
 {
     return s.trim();
+}
+function strip_comments(s)
+{
+	var m;
+	while (m=s.match(COMMENT)) s = s.slice(0, m.index) + s.slice(m.index + m[0].length);
+	return s;
 }
 function parse_number(s)
 {
@@ -312,7 +319,7 @@ function parse_atts(s)
 function parse_tag(s, cursor)
 {
     if (cursor && cursor.parsed) return;
-    if (s.tagName && s.children)
+	if (s.tagName && s.children)
     {
         var atts = parse_node_atts(s);
         atts.style = parse_style(atts);
@@ -324,6 +331,10 @@ function parse_tag(s, cursor)
             children: s.children
         };
     }
+	else if (s.nodeType)
+	{
+		return;
+	}
     var i = cursor.index || 0, m;
     s = s.slice(i);
     if (m=s.match(TAG))
@@ -516,7 +527,7 @@ function parse(s, cursor, expectEndTag, curr)
                 if ('svg' === expectEndTag) ++matchEndTag;
                 objects.push({
                     type: 'SVG',
-                    viewBox: el.atts.viewbox ? (el.atts.viewbox.match(NUMBER) || []).map(parse_number) : [0,0,0,0],
+                    viewBox: el.atts.viewbox ? (el.atts.viewbox.match(NUMBER) || []).map(parse_number) : null,
 					width: el.atts.width || null,
 					height: el.atts.height || null,
                     nodes: el.children ? [].reduce.call(el.children, function(objects, s) {
@@ -535,7 +546,7 @@ function parse(s, cursor, expectEndTag, curr)
 }
 function svg2json(svg)
 {
-    return parse(svg.tagName ? svg : trim(String(svg)), {index:0});
+	return svg ? parse(svg.tagName ? svg : strip_comments(trim(String(svg))), {index:0}) : [];
 }
 svg2json.parsePath = parse_path;
 svg2json.VERSION = VERSION;

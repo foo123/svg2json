@@ -23,7 +23,7 @@ output:
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!-- (PD) January 26, 2006 - _Crotalus horridus_  -->
 <svg xmlns="http://www.w3.org/2000/svg" width="250" height="250">
-<g fill="none" stroke="#000" stroke-width="21">
+<g fill="none" stroke="#000" stroke-width="21" transform="scale(1.1 1.1)">
 <circle cx="125" cy="125" r="106"/>
 <path d="M125,19 v212 M125,125 l-75,75 M125,125 l75,75"/>
 </g>
@@ -34,12 +34,7 @@ output:
 [
   {
     "type": "SVG",
-    "viewBox": [
-      0,
-      0,
-      0,
-      0
-    ],
+    "viewBox": null,
     "width": "250",
     "height": "250",
     "nodes": [
@@ -50,7 +45,15 @@ output:
           "stroke": "#000",
           "fill": "none"
         },
-        "transform": null,
+        "transform": [
+          [
+            "scale",
+            [
+              1.1,
+              1.1
+            ]
+          ]
+        ],
         "nodes": [
           {
             "type": "Circle",
