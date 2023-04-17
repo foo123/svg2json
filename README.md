@@ -2,7 +2,7 @@
 
 Simple utility to parse SVG to JSON
 
-**version: 1.0.0** (7 kB minified)
+**version: 1.0.1** (8 kB minified)
 
 
 Example (see tests):

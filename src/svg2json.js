@@ -2,7 +2,7 @@
 *
 *   SVG2JSON Parse SVG string or nodes into a JSON
 *   https://github.com/foo123/svg2json
-*   @VERSION 1.0.0
+*   @VERSION 1.0.1
 *
 **/
 !function(root, name, factory) {
@@ -18,7 +18,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__svg2json(undef) {
 "use strict";
 
-var VERSION = "1.0.0",
+var VERSION = "1.0.1",
     COMMENT = /<!--.*?-->/m,
     TAG = /<(\/)?([a-z0-9_:\-]+)\b\s*([^<>]*)\/?>/im,
     ATT = /([a-z0-9_:\-]+)\b\s*(?:=\s*"([^"]*)")?/im,
@@ -109,12 +109,23 @@ function parse_path(d, curr)
                 ];
                 curr[0] = p2[0];
                 curr[1] = p2[1];
-                a.push({
-                type: 'Line',
-                points: [p1, p2],
-                pointsrel: [[p2[0] - p1[0], p2[1] - p1[1]]],
-                H: true
-                });
+                if (a.length && ('Line' === a[a.length-1].type || 'Polyline' === a[a.length-1].type) && !a[a.length-1].Z)
+                {
+                    a[a.length-1].type = 'Polyline';
+                    a[a.length-1].points.push(p2);
+                    a[a.length-1].pointsrel.push([p2[0] - p1[0], p2[1] - p1[1]]);
+                    if (a[a.length-1].H) delete a[a.length-1].H;
+                    if (a[a.length-1].V) delete a[a.length-1].V;
+                }
+                else
+                {
+                    a.push({
+                    type: 'Line',
+                    points: [p1, p2],
+                    pointsrel: [[p2[0] - p1[0], p2[1] - p1[1]]],
+                    H: true
+                    });
+                }
             }
             break;
             case 'V':
@@ -127,12 +138,23 @@ function parse_path(d, curr)
                 ];
                 curr[0] = p2[0];
                 curr[1] = p2[1];
-                a.push({
-                type: 'Line',
-                points: [p1, p2],
-                pointsrel: [[p2[0] - p1[0], p2[1] - p1[1]]],
-                V: true
-                });
+                if (a.length && ('Line' === a[a.length-1].type || 'Polyline' === a[a.length-1].type) && !a[a.length-1].Z)
+                {
+                    a[a.length-1].type = 'Polyline';
+                    a[a.length-1].points.push(p2);
+                    a[a.length-1].pointsrel.push([p2[0] - p1[0], p2[1] - p1[1]]);
+                    if (a[a.length-1].H) delete a[a.length-1].H;
+                    if (a[a.length-1].V) delete a[a.length-1].V;
+                }
+                else
+                {
+                    a.push({
+                    type: 'Line',
+                    points: [p1, p2],
+                    pointsrel: [[p2[0] - p1[0], p2[1] - p1[1]]],
+                    V: true
+                    });
+                }
             }
             break;
             case 'L':
@@ -145,11 +167,22 @@ function parse_path(d, curr)
                 ];
                 curr[0] = p2[0];
                 curr[1] = p2[1];
-                a.push({
-                type: 'Line',
-                points: [p1, p2],
-                pointsrel: [[p2[0] - p1[0], p2[1] - p1[1]]]
-                });
+                if (a.length && ('Line' === a[a.length-1].type || 'Polyline' === a[a.length-1].type) && !a[a.length-1].Z)
+                {
+                    a[a.length-1].type = 'Polyline';
+                    a[a.length-1].points.push(p2);
+                    a[a.length-1].pointsrel.push([p2[0] - p1[0], p2[1] - p1[1]]);
+                    if (a[a.length-1].H) delete a[a.length-1].H;
+                    if (a[a.length-1].V) delete a[a.length-1].V;
+                }
+                else
+                {
+                    a.push({
+                    type: 'Line',
+                    points: [p1, p2],
+                    pointsrel: [[p2[0] - p1[0], p2[1] - p1[1]]]
+                    });
+                }
             }
             break;
             case 'A':
