@@ -2,7 +2,7 @@
 *
 *   SVG2JSON Parse SVG string or nodes into a JSON
 *   https://github.com/foo123/svg2json
-*   @VERSION 1.0.1
+*   @VERSION 1.1.0
 *
 **/
 !function(root, name, factory) {
@@ -18,8 +18,9 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__svg2json(undef) {
 "use strict";
 
-var VERSION = "1.0.1",
+var VERSION = "1.1.0",
     COMMENT = /<!--.*?-->/m,
+    COMMENT2 = /\/\*.*?\*\//m,
     TAG = /<(\/)?([a-z0-9_:\-]+)\b\s*([^<>]*)\/?>/im,
     ATT = /([a-z0-9_:\-]+)\b\s*(?:=\s*"([^"]*)")?/im,
     COMMAND = /[MLHVCSQTAZ]/gi,
@@ -32,10 +33,11 @@ function trim(s)
 {
     return s.trim();
 }
-function strip_comments(s)
+function strip_comments(s, comment_re)
 {
     var m;
-    while (m=s.match(COMMENT)) s = s.slice(0, m.index) + s.slice(m.index + m[0].length);
+    comment_re = comment_re || COMMENT;
+    while (m=s.match(comment_re)) s = s.slice(0, m.index) + s.slice(m.index + m[0].length);
     return s;
 }
 function parse_number(s)
@@ -74,29 +76,75 @@ function parse_transform(atts)
     }
     return tr.length ? tr : null;
 }
+function parse_css(css)
+{
+    var parts = trim(strip_comments(css, COMMENT2)).split('{'),
+        i, l = parts.length - 1, parts2,
+        p1, p2, rules = new Array(0 < l ? l : 0);
+    for (i=0; i<l; ++i)
+    {
+        p1 = parts[i];
+        p2 = parts[i+1];
+        parts2 = p2.split('}');
+        rules[i] = {selector:trim(p1), style:parse_style({style:parts2[0]})};
+        parts[i+1] = parts2[1];
+    }
+    return rules;
+}
 function parse_path(d, curr)
 {
-    curr = curr || [0, 0];
+    curr = /*curr ||*/ [0, 0];
     d = trim(String(d));
     var c = d.match(COMMAND), p = d.split(COMMAND), start = [curr[0], curr[1]];
     return c ? c.reduce(function(a, c, i) {
         var isRelative = c === c.toLowerCase(),
             pp = (trim(p[i+1] || '').match(NUMBER) || []).map(parse_number),
-            p1, p2, p3, p4, tmp;
+            p1, p2, p3, p4, tmp, implicitLine;
         switch (c.toUpperCase())
         {
             case 'M':
-            if (2 <= pp.length)
+            implicitLine = false;
+            while (2 <= pp.length)
             {
-                start = [isRelative ? [pp[0], pp[1]] : [pp[0] - curr[0], pp[1] - curr[1]]];
-                curr[0] = (isRelative ? curr[0] : 0) + pp[0];
-                curr[1] = (isRelative ? curr[1] : 0) + pp[1];
-                a.push({
-                type: 'Move',
-                points: [curr.slice()],
-                pointsrel: start
-                });
-                start = [curr[0], curr[1]];
+                if (implicitLine)
+                {
+                    p1 = [curr[0], curr[1]];
+                    p2 = [
+                    (isRelative ? p1[0] : 0) + pp.shift(),
+                    (isRelative ? p1[1] : 0) + pp.shift(),
+                    ];
+                    curr[0] = p2[0];
+                    curr[1] = p2[1];
+                    if (a.length && ('Line' === a[a.length-1].type || 'Polyline' === a[a.length-1].type) && !a[a.length-1].Z)
+                    {
+                        a[a.length-1].type = 'Polyline';
+                        a[a.length-1].points.push(p2);
+                        a[a.length-1].pointsrel.push([p2[0] - p1[0], p2[1] - p1[1]]);
+                        if (a[a.length-1].H) delete a[a.length-1].H;
+                        if (a[a.length-1].V) delete a[a.length-1].V;
+                    }
+                    else
+                    {
+                        a.push({
+                        type: 'Line',
+                        points: [p1, p2],
+                        pointsrel: [[p2[0] - p1[0], p2[1] - p1[1]]]
+                        });
+                    }
+                }
+                else
+                {
+                    start = [isRelative ? [pp[0], pp[1]] : [pp[0] - curr[0], pp[1] - curr[1]]];
+                    curr[0] = (isRelative ? curr[0] : 0) + pp.shift();
+                    curr[1] = (isRelative ? curr[1] : 0) + pp.shift();
+                    a.push({
+                    type: 'Move',
+                    points: [curr.slice()],
+                    pointsrel: start
+                    });
+                    start = [curr[0], curr[1]];
+                }
+                implicitLine = true;
             }
             break;
             case 'H':
@@ -355,13 +403,14 @@ function parse_tag(s, cursor)
     if (s.tagName && s.children)
     {
         var atts = parse_node_atts(s);
-        atts.style = parse_style(atts);
-        atts.transform = parse_transform(atts);
+        atts.style = atts.style ? parse_style(atts) : undef;
+        atts.transform = atts.transform ? parse_transform(atts) : undef;
         cursor.parsed = true;
         return {
             tag: s.tagName.toLowerCase(),
             atts: atts,
-            children: s.children
+            children: s.children,
+            content: s.textContent
         };
     }
     else if (s.nodeType)
@@ -377,24 +426,27 @@ function parse_tag(s, cursor)
         {
             return {
                 tag: m[2].toLowerCase(),
-                end: true
+                end: true,
+                content: cursor.src.slice(cursor.start.pop(), i + m.index)
             };
         }
         else
         {
             var atts = parse_atts(m[3]);
-            atts.style = parse_style(atts);
-            atts.transform = parse_transform(atts);
+            atts.style = atts.style ? parse_style(atts) : undef;
+            atts.transform = atts.transform ? parse_transform(atts) : undef;
+            (cursor.start = cursor.start || []).push(cursor.index);
             return {
                 tag: m[2].toLowerCase(),
-                atts: atts
+                atts: atts,
+                content: ''
             };
         }
     }
 }
 function parse(s, cursor, expectEndTag, curr)
 {
-    curr = curr || [0, 0];
+    //curr = /*curr ||*/ [0, 0];
     var el, p, objects = [], matchEndTag = expectEndTag ? 1 : 0;
     while (el=parse_tag(s, cursor))
     {
@@ -407,10 +459,12 @@ function parse(s, cursor, expectEndTag, curr)
                     [parse_number(el.atts.x1), parse_number(el.atts.y1)],
                     [parse_number(el.atts.x2), parse_number(el.atts.y2)]
                 ];
-                curr[0] = p[1][0];
-                curr[1] = p[1][1];
+                //curr[0] = p[1][0];
+                //curr[1] = p[1][1];
                 objects.push({
                     type: 'Line',
+                    id: el.atts.id,
+                    'class': el.atts['class'],
                     style: el.atts.style,
                     transform: el.atts.transform,
                     points: p,
@@ -432,10 +486,12 @@ function parse(s, cursor, expectEndTag, curr)
                     }
                     return points;
                 }, []);
-                curr[0] = p[p.length-1][0];
-                curr[1] = p[p.length-1][1];
+                //curr[0] = p[p.length-1][0];
+                //curr[1] = p[p.length-1][1];
                 objects.push({
                     type: 'Polyline',
+                    id: el.atts.id,
+                    'class': el.atts['class'],
                     style: el.atts.style,
                     transform: el.atts.transform,
                     points: p,
@@ -457,10 +513,12 @@ function parse(s, cursor, expectEndTag, curr)
                     }
                     return points;
                 }, []);
-                curr[0] = p[0][0];
-                curr[1] = p[0][1];
+                //curr[0] = p[0][0];
+                //curr[1] = p[0][1];
                 objects.push({
                     type: 'Polygon',
+                    id: el.atts.id,
+                    'class': el.atts['class'],
                     style: el.atts.style,
                     transform: el.atts.transform,
                     points: p,
@@ -474,10 +532,12 @@ function parse(s, cursor, expectEndTag, curr)
                 var x = parse_number(el.atts.x), y = parse_number(el.atts.y),
                     w = parse_number(el.atts.width), h = parse_number(el.atts.height);
                 p = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]];
-                curr[0] = p[0][0];
-                curr[1] = p[0][1];
+                //curr[0] = p[0][0];
+                //curr[1] = p[0][1];
                 objects.push({
                     type: 'Polygon',
+                    id: el.atts.id,
+                    'class': el.atts['class'],
                     style: el.atts.style,
                     transform: el.atts.transform,
                     rect: [x, y, w, h],
@@ -491,6 +551,8 @@ function parse(s, cursor, expectEndTag, curr)
             {
                 objects.push({
                     type: 'Circle',
+                    id: el.atts.id,
+                    'class': el.atts['class'],
                     style: el.atts.style,
                     transform: el.atts.transform,
                     center: [parse_number(el.atts.cx), parse_number(el.atts.cy)],
@@ -503,6 +565,8 @@ function parse(s, cursor, expectEndTag, curr)
             {
                 objects.push({
                     type: 'Ellipse',
+                    id: el.atts.id,
+                    'class': el.atts['class'],
                     style: el.atts.style,
                     transform: el.atts.transform,
                     center: [parse_number(el.atts.cx), parse_number(el.atts.cy)],
@@ -517,9 +581,11 @@ function parse(s, cursor, expectEndTag, curr)
             {
                 objects.push({
                     type: 'Path',
+                    id: el.atts.id,
+                    'class': el.atts['class'],
                     style: el.atts.style,
                     transform: el.atts.transform,
-                    d: parse_path(el.atts.d || '', curr)
+                    d: parse_path(el.atts.d || ''/*, curr*/)
                 });
             }
             break;
@@ -537,12 +603,56 @@ function parse(s, cursor, expectEndTag, curr)
                 if ('g' === expectEndTag) ++matchEndTag;
                 objects.push({
                     type: 'Group',
+                    id: el.atts.id,
+                    'class': el.atts['class'],
                     style: el.atts.style,
                     transform: el.atts.transform,
                     nodes: el.children ? [].reduce.call(el.children, function(objects, s) {
-                        objects.push.apply(objects, parse(s, {index:0}, 'g', curr));
+                        objects.push.apply(objects, parse(s, {index:0, src:s}, 'g'/*, curr*/));
                         return objects;
-                    }, []) : parse(s, cursor, 'g', curr)
+                    }, []) : parse(s, cursor, 'g'/*, curr*/)
+                });
+            }
+            break;
+            case 'defs':
+            if (el.end)
+            {
+                if ('defs' === expectEndTag)
+                {
+                    --matchEndTag;
+                    if (0 === matchEndTag) return objects;
+                }
+            }
+            else
+            {
+                if ('defs' === expectEndTag) ++matchEndTag;
+                objects.push({
+                    type: 'Defs',
+                    nodes: el.children ? [].reduce.call(el.children, function(objects, s) {
+                        objects.push.apply(objects, parse(s, {index:0, src:s}, 'defs'/*, curr*/));
+                        return objects;
+                    }, []) : parse(s, cursor, 'defs'/*, curr*/)
+                });
+            }
+            break;
+            case 'style':
+            if (el.end)
+            {
+                if ('style' === expectEndTag)
+                {
+                    --matchEndTag;
+                    if (0 === matchEndTag)
+                    {
+                        return parse_css(el.content);
+                    }
+                }
+            }
+            else
+            {
+                if ('style' === expectEndTag) ++matchEndTag;
+                objects.push({
+                    type: 'Style',
+                    rules: el.children ? parse_css(el.content) : parse(s, cursor, 'style'/*, curr*/)
                 });
             }
             break;
@@ -579,7 +689,19 @@ function parse(s, cursor, expectEndTag, curr)
 }
 function svg2json(svg)
 {
-    return svg ? parse(svg.tagName ? svg : strip_comments(trim(String(svg))), {index:0}) : [];
+    if (svg)
+    {
+        if (svg.tagName && svg.nodeType)
+        {
+            return parse(svg, {index:0, src:svg});
+        }
+        else
+        {
+            var cursor = {index:0, src:strip_comments(trim(String(svg)))};
+            return parse(cursor.src, cursor);
+        }
+    }
+    return [];
 }
 svg2json.parsePath = parse_path;
 svg2json.VERSION = VERSION;

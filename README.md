@@ -2,7 +2,7 @@
 
 Simple utility to parse SVG to JSON
 
-**version: 1.0.1** (8 kB minified)
+**version: 1.1.0** (9 kB minified)
 
 
 Example (see tests):
@@ -23,9 +23,10 @@ output:
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!-- (PD) January 26, 2006 - _Crotalus horridus_  -->
 <svg xmlns="http://www.w3.org/2000/svg" width="250" height="250">
+<defs><style>.circ{stroke:red}/*.foo{fill:none}*/#p,.circ{stroke-width:2}</style></defs>
 <g fill="none" stroke="#000" stroke-width="21" transform="scale(1.1 1.1)">
-<circle cx="125" cy="125" r="106"/>
-<path d="M125,19 v212 M125,125 l-75,75 M125,125 l75,75"/>
+<circle class="circ" cx="125" cy="125" r="106"/>
+<path id="p" class="pth" d="M125,19 v212 M125,125 l-75,75 M125,125 l75,75"/>
 </g>
 </svg>
 ```
@@ -39,12 +40,29 @@ output:
     "height": "250",
     "nodes": [
       {
+        "type": "Defs",
+        "nodes": [
+          {
+            "type": "Style",
+            "rules": [
+              {
+                "selector": ".circ",
+                "style": {
+                  "stroke": "red"
+                }
+              },
+              {
+                "selector": "#p,.circ",
+                "style": {
+                  "stroke-width": "2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
         "type": "Group",
-        "style": {
-          "stroke-width": "21",
-          "stroke": "#000",
-          "fill": "none"
-        },
         "transform": [
           [
             "scale",
@@ -57,8 +75,7 @@ output:
         "nodes": [
           {
             "type": "Circle",
-            "style": {},
-            "transform": null,
+            "class": "circ",
             "center": [
               125,
               125
@@ -67,8 +84,8 @@ output:
           },
           {
             "type": "Path",
-            "style": {},
-            "transform": null,
+            "id": "p",
+            "class": "pth",
             "d": [
               {
                 "type": "Move",
