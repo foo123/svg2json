@@ -2,7 +2,7 @@
 
 Simple utility to parse SVG to JSON
 
-**version: 1.1.0** (9 kB minified)
+**version: 2.0.0** (10 kB minified)
 
 
 Example (see tests):
@@ -10,7 +10,7 @@ Example (see tests):
 ```javascript
 const svg2json = require('../src/svg2json.js');
 
-const svg = String(require('fs').readFileSync(__dirname + '/Peace_sign.svg', {encoding: 'ascii'}));
+const svg = String(require('fs').readFileSync(__dirname + '/test.svg', {encoding: 'ascii'}));
 console.log(svg);
 
 const json = svg2json(svg);
@@ -20,14 +20,19 @@ console.log(JSON.stringify(json, null, 2));
 output:
 
 ```html
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- (PD) January 26, 2006 - _Crotalus horridus_  -->
-<svg xmlns="http://www.w3.org/2000/svg" width="250" height="250">
-<defs><style>.circ{stroke:red}/*.foo{fill:none}*/#p,.circ{stroke-width:2}</style></defs>
-<g fill="none" stroke="#000" stroke-width="21" transform="scale(1.1 1.1)">
-<circle class="circ" cx="125" cy="125" r="106"/>
-<path id="p" class="pth" d="M125,19 v212 M125,125 l-75,75 M125,125 l75,75"/>
-</g>
+<svg
+  viewBox="0 0 10 10"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="myGradient" gradientTransform="rotate(90)">
+      <stop offset="5%" stop-color="gold" />
+      <stop offset="95%" stop-color="red" />
+    </linearGradient>
+  </defs>
+
+  <!-- using my linear gradient -->
+  <circle cx="5" cy="5" r="4" fill="url('#myGradient')" />
 </svg>
 ```
 
@@ -35,26 +40,45 @@ output:
 [
   {
     "type": "SVG",
-    "viewBox": null,
-    "width": "250",
-    "height": "250",
+    "viewBox": [
+      0,
+      0,
+      10,
+      10
+    ],
+    "width": null,
+    "height": null,
     "nodes": [
       {
         "type": "Defs",
         "nodes": [
           {
-            "type": "Style",
-            "rules": [
+            "type": "linearGradient",
+            "atts": {
+              "id": "myGradient",
+              "gradienttransform": [
+                [
+                  "rotate",
+                  [
+                    90
+                  ]
+                ]
+              ]
+            },
+            "id": "myGradient",
+            "stops": [
               {
-                "selector": ".circ",
-                "style": {
-                  "stroke": "red"
+                "type": "Stop",
+                "atts": {
+                  "offset": "5%",
+                  "stop-color": "gold"
                 }
               },
               {
-                "selector": "#p,.circ",
-                "style": {
-                  "stroke-width": "2"
+                "type": "Stop",
+                "atts": {
+                  "offset": "95%",
+                  "stop-color": "red"
                 }
               }
             ]
@@ -62,137 +86,18 @@ output:
         ]
       },
       {
-        "type": "Group",
-        "transform": [
-          [
-            "scale",
-            [
-              1.1,
-              1.1
-            ]
-          ]
+        "type": "Circle",
+        "atts": {
+          "cx": "5",
+          "cy": "5",
+          "r": "4",
+          "fill": "url('#myGradient')"
+        },
+        "center": [
+          5,
+          5
         ],
-        "nodes": [
-          {
-            "type": "Circle",
-            "class": "circ",
-            "center": [
-              125,
-              125
-            ],
-            "radius": 106
-          },
-          {
-            "type": "Path",
-            "id": "p",
-            "class": "pth",
-            "d": [
-              {
-                "type": "Move",
-                "points": [
-                  [
-                    125,
-                    19
-                  ]
-                ],
-                "pointsrel": [
-                  [
-                    125,
-                    19
-                  ]
-                ]
-              },
-              {
-                "type": "Line",
-                "points": [
-                  [
-                    125,
-                    19
-                  ],
-                  [
-                    125,
-                    231
-                  ]
-                ],
-                "pointsrel": [
-                  [
-                    0,
-                    212
-                  ]
-                ],
-                "V": true
-              },
-              {
-                "type": "Move",
-                "points": [
-                  [
-                    125,
-                    125
-                  ]
-                ],
-                "pointsrel": [
-                  [
-                    0,
-                    -106
-                  ]
-                ]
-              },
-              {
-                "type": "Line",
-                "points": [
-                  [
-                    125,
-                    125
-                  ],
-                  [
-                    50,
-                    200
-                  ]
-                ],
-                "pointsrel": [
-                  [
-                    -75,
-                    75
-                  ]
-                ]
-              },
-              {
-                "type": "Move",
-                "points": [
-                  [
-                    125,
-                    125
-                  ]
-                ],
-                "pointsrel": [
-                  [
-                    75,
-                    -75
-                  ]
-                ]
-              },
-              {
-                "type": "Line",
-                "points": [
-                  [
-                    125,
-                    125
-                  ],
-                  [
-                    200,
-                    200
-                  ]
-                ],
-                "pointsrel": [
-                  [
-                    75,
-                    75
-                  ]
-                ]
-              }
-            ]
-          }
-        ]
+        "radius": 4
       }
     ]
   }

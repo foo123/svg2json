@@ -2,7 +2,7 @@
 *
 *   SVG2JSON Parse SVG string or nodes into a JSON
 *   https://github.com/foo123/svg2json
-*   @VERSION 1.1.0
+*   @VERSION 2.0.0
 *
 **/
 !function(root, name, factory) {
@@ -18,7 +18,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__svg2json(undef) {
 "use strict";
 
-var VERSION = "1.1.0",
+var VERSION = "2.0.0",
     COMMENT = /<!--.*?-->/m,
     COMMENT2 = /\/\*.*?\*\//m,
     TAG = /<(\/)?([a-z0-9_:\-]+)\b\s*([^<>]*)\/?>/im,
@@ -66,9 +66,9 @@ function parse_style(atts)
     });
     return style;
 }
-function parse_transform(atts)
+function parse_transform(atts, prop)
 {
-    var m, s = trim(atts.transform || ''), tr = [];
+    var m, s = trim(atts[prop || 'transform'] || ''), tr = [];
     while (m=s.match(TRANSFORM))
     {
         tr.push([trim(m[1]).toLowerCase(), (trim(m[2]).match(NUMBER) || []).map(parse_number)]);
@@ -403,8 +403,9 @@ function parse_tag(s, cursor)
     if (s.tagName && s.children)
     {
         var atts = parse_node_atts(s);
-        atts.style = atts.style ? parse_style(atts) : undef;
-        atts.transform = atts.transform ? parse_transform(atts) : undef;
+        if (atts.style) atts.style = parse_style(atts);
+        if (atts.transform) atts.transform = parse_transform(atts, 'transform');
+        if (atts.gradienttransform) atts.gradienttransform = parse_transform(atts, 'gradienttransform');
         cursor.parsed = true;
         return {
             tag: s.tagName.toLowerCase(),
@@ -433,8 +434,9 @@ function parse_tag(s, cursor)
         else
         {
             var atts = parse_atts(m[3]);
-            atts.style = atts.style ? parse_style(atts) : undef;
-            atts.transform = atts.transform ? parse_transform(atts) : undef;
+            if (atts.style) atts.style = parse_style(atts);
+            if (atts.transform) atts.transform = parse_transform(atts, 'transform');
+            if (atts.gradienttransform) atts.gradienttransform = parse_transform(atts, 'gradienttransform');
             (cursor.start = cursor.start || []).push(cursor.index);
             return {
                 tag: m[2].toLowerCase(),
@@ -463,10 +465,9 @@ function parse(s, cursor, expectEndTag, curr)
                 //curr[1] = p[1][1];
                 objects.push({
                     type: 'Line',
+                    atts: el.atts,
                     id: el.atts.id,
                     'class': el.atts['class'],
-                    style: el.atts.style,
-                    transform: el.atts.transform,
                     points: p,
                     pointsrel: p.slice(1).map(function(pt) {return [pt[0] - p[0][0], pt[1] - p[0][1]]})
                 });
@@ -490,10 +491,9 @@ function parse(s, cursor, expectEndTag, curr)
                 //curr[1] = p[p.length-1][1];
                 objects.push({
                     type: 'Polyline',
+                    atts: el.atts,
                     id: el.atts.id,
                     'class': el.atts['class'],
-                    style: el.atts.style,
-                    transform: el.atts.transform,
                     points: p,
                     pointsrel: p.slice(1).map(function(pt) {return [pt[0] - p[0][0], pt[1] - p[0][1]]})
                 });
@@ -517,10 +517,9 @@ function parse(s, cursor, expectEndTag, curr)
                 //curr[1] = p[0][1];
                 objects.push({
                     type: 'Polygon',
+                    atts: el.atts,
                     id: el.atts.id,
                     'class': el.atts['class'],
-                    style: el.atts.style,
-                    transform: el.atts.transform,
                     points: p,
                     pointsrel: p.slice(1).map(function(pt) {return [pt[0] - p[0][0], pt[1] - p[0][1]]})
                 });
@@ -536,10 +535,9 @@ function parse(s, cursor, expectEndTag, curr)
                 //curr[1] = p[0][1];
                 objects.push({
                     type: 'Polygon',
+                    atts: el.atts,
                     id: el.atts.id,
                     'class': el.atts['class'],
-                    style: el.atts.style,
-                    transform: el.atts.transform,
                     rect: [x, y, w, h],
                     points: p,
                     pointsrel: p.slice(1).map(function(pt) {return [pt[0] - p[0][0], pt[1] - p[0][1]]})
@@ -551,10 +549,9 @@ function parse(s, cursor, expectEndTag, curr)
             {
                 objects.push({
                     type: 'Circle',
+                    atts: el.atts,
                     id: el.atts.id,
                     'class': el.atts['class'],
-                    style: el.atts.style,
-                    transform: el.atts.transform,
                     center: [parse_number(el.atts.cx), parse_number(el.atts.cy)],
                     radius: parse_number(el.atts.r)
                 });
@@ -565,10 +562,9 @@ function parse(s, cursor, expectEndTag, curr)
             {
                 objects.push({
                     type: 'Ellipse',
+                    atts: el.atts,
                     id: el.atts.id,
                     'class': el.atts['class'],
-                    style: el.atts.style,
-                    transform: el.atts.transform,
                     center: [parse_number(el.atts.cx), parse_number(el.atts.cy)],
                     radiusX: parse_number(el.atts.rx),
                     radiusY: parse_number(el.atts.ry),
@@ -581,10 +577,9 @@ function parse(s, cursor, expectEndTag, curr)
             {
                 objects.push({
                     type: 'Path',
+                    atts: el.atts,
                     id: el.atts.id,
                     'class': el.atts['class'],
-                    style: el.atts.style,
-                    transform: el.atts.transform,
                     d: parse_path(el.atts.d || ''/*, curr*/)
                 });
             }
@@ -603,10 +598,9 @@ function parse(s, cursor, expectEndTag, curr)
                 if ('g' === expectEndTag) ++matchEndTag;
                 objects.push({
                     type: 'Group',
+                    atts: el.atts,
                     id: el.atts.id,
                     'class': el.atts['class'],
-                    style: el.atts.style,
-                    transform: el.atts.transform,
                     nodes: el.children ? [].reduce.call(el.children, function(objects, s) {
                         objects.push.apply(objects, parse(s, {index:0, src:s}, 'g'/*, curr*/));
                         return objects;
@@ -632,6 +626,61 @@ function parse(s, cursor, expectEndTag, curr)
                         objects.push.apply(objects, parse(s, {index:0, src:s}, 'defs'/*, curr*/));
                         return objects;
                     }, []) : parse(s, cursor, 'defs'/*, curr*/)
+                });
+            }
+            break;
+            case 'stop':
+            if (!el.end)
+            {
+                objects.push({
+                    type: 'Stop',
+                    atts: el.atts,
+                    id: el.atts.id,
+                    'class': el.atts['class']
+                });
+            }
+            break;
+            case 'lineargradient':
+            if (el.end)
+            {
+                if ('lineargradient' === expectEndTag)
+                {
+                    --matchEndTag;
+                    if (0 === matchEndTag) return objects;
+                }
+            }
+            else
+            {
+                objects.push({
+                    type: 'linearGradient',
+                    atts: el.atts,
+                    id: el.atts.id,
+                    stops: el.children ? [].reduce.call(el.children, function(objects, s) {
+                        objects.push.apply(objects, parse(s, {index:0, src:s}, 'lineargradient'/*, curr*/));
+                        return objects;
+                    }, []) : parse(s, cursor, 'lineargradient'/*, curr*/)
+                });
+            }
+            break;
+            case 'radialgradient':
+            if (el.end)
+            {
+                if ('radialgradient' === expectEndTag)
+                {
+                    --matchEndTag;
+                    if (0 === matchEndTag) return objects;
+                }
+            }
+            else
+            {
+                objects.push({
+                    type: 'radialGradient',
+                    atts: el.atts,
+                    id: el.atts.id,
+                    stops: el.children ? [].reduce.call(el.children, function(objects, s) {
+                        objects.push.apply(objects, parse(s, {index:0, src:s}, 'radialgradient'/*, curr*/));
+                        return objects;
+                    }, []) : parse(s, cursor, 'radialgradient'/*, curr*/)
                 });
             }
             break;
