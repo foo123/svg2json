@@ -42,16 +42,19 @@ function strip_comments(s, comment_re)
 }
 function parse_number(s)
 {
-    return parseFloat(s || '') || 0;
+    return parseFloat(s || '0') || 0;
 }
 function parse_style(atts)
 {
     var styleProperties = {
-    'stroke-width':1,
     'stroke':1,
     'stroke-opacity':1,
+    'stroke-dasharray':1,
+    'stroke-dashoffset':1,
     'stroke-linecap':1,
     'stroke-linejoin':1,
+    'stroke-miterlimit':1,
+    'stroke-width':1,
     'fill':1,
     'fill-opacity':1,
     'fill-rule':1
